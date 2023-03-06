@@ -13,29 +13,139 @@ module rgb_mixer (
     output pwm1_out,
     output pwm2_out
 );
-    wire enc0_a_db, enc0_b_db;
-    wire enc1_a_db, enc1_b_db;
-    wire enc2_a_db, enc2_b_db;
-    wire [7:0] enc0, enc1, enc2;
+	reg [7:0] counter; /* general clock counter */
 
-    // debouncers, 2 for each encoder
-    debounce #(.HIST_LEN(8)) debounce0_a(.clk(clk), .reset(reset), .button(enc0_a), .debounced(enc0_a_db));
-    debounce #(.HIST_LEN(8)) debounce0_b(.clk(clk), .reset(reset), .button(enc0_b), .debounced(enc0_b_db));
+	reg [7:0] debounceReg_0_a; /* shift reg for enc0 pin A */
+	reg [7:0] debounceReg_0_b; /* shift reg for enc0 pin B */
+	reg deb_0_a; /* current debounced value for enc0 pin A */
+	reg deb_0_b; /* current debounced value for enc0 pin B */
+	reg deb_old_0_a; /* old debounced value for enc0 pin A */
+	reg deb_old_0_b; /* old debounced value for enc0 pin B */
+	reg [7:0] enc0; /* current value of encoder 0 register */
 
-    debounce #(.HIST_LEN(8)) debounce1_a(.clk(clk), .reset(reset), .button(enc1_a), .debounced(enc1_a_db));
-    debounce #(.HIST_LEN(8)) debounce1_b(.clk(clk), .reset(reset), .button(enc1_b), .debounced(enc1_b_db));
+	reg [7:0] debounceReg_1_a;
+	reg [7:0] debounceReg_1_b;
+	reg deb_1_a;
+	reg deb_1_b;
+	reg deb_old_1_a;
+	reg deb_old_1_b;
+	reg [7:0] enc1;
+	
+	reg [7:0] debounceReg_2_a;	
+	reg [7:0] debounceReg_2_b;
+	reg deb_2_a;
+	reg deb_2_b;
+	reg deb_old_2_a;
+	reg deb_old_2_b;
+	reg [7:0] enc2;
+	
+	always @(posedge clk) begin
+		if (reset) begin
+			counter <= 0;
+		
+			enc0 <= 0;
+			enc1 <= 0;
+			enc2 <= 0;
+						
+			debounceReg_0_a <= 0;
+			debounceReg_0_b <= 0;
+			debounceReg_1_a <= 0;			
+			debounceReg_1_b <= 0;
+			debounceReg_2_a <= 0;
+			debounceReg_2_b <= 0;
 
-    debounce #(.HIST_LEN(8)) debounce2_a(.clk(clk), .reset(reset), .button(enc2_a), .debounced(enc2_a_db));
-    debounce #(.HIST_LEN(8)) debounce2_b(.clk(clk), .reset(reset), .button(enc2_b), .debounced(enc2_b_db));
+			deb_0_a <= 0;
+			deb_0_b <= 0;
+			deb_1_a <= 0;
+			deb_1_b <= 0;
+			deb_2_a <= 0;
+			deb_2_b <= 0;
+		
+			deb_old_0_a <= 0;
+			deb_old_0_b <= 0;
+			deb_old_1_a <= 0;
+			deb_old_1_b <= 0;
+			deb_old_2_a <= 0;
+			deb_old_2_b <= 0;										
 
-    // encoders
-    encoder #(.WIDTH(8)) encoder0(.clk(clk), .reset(reset), .a(enc0_a_db), .b(enc0_b_db), .value(enc0));
-    encoder #(.WIDTH(8)) encoder1(.clk(clk), .reset(reset), .a(enc1_a_db), .b(enc1_b_db), .value(enc1));
-    encoder #(.WIDTH(8)) encoder2(.clk(clk), .reset(reset), .a(enc2_a_db), .b(enc2_b_db), .value(enc2));
+		end else begin
+			counter <= counter + 1'b1;
+		
+			/* Debouncing inputs */
+			debounceReg_0_a <= { debounceReg_0_a[6:0], enc0_a };
+			debounceReg_0_b <= { debounceReg_0_b[6:0], enc0_b };
+			
+			if (debounceReg_0_a == 8'b0000_0000) begin
+				deb_0_a <= 0;
+			end else begin
+				deb_0_a <= 1;
+			end
+			
+			if (debounceReg_0_b == 8'b0000_0000) begin
+				deb_0_b <= 0;
+			end else begin
+				deb_0_b <= 1;
+			end
+			
+			
+			debounceReg_1_a <= { debounceReg_1_a[6:0], enc1_a };		
+			debounceReg_1_b <= { debounceReg_1_b[6:0], enc1_b };
+			
+			if (debounceReg_1_a == 8'b0000_0000) begin
+				deb_1_a <= 0;
+			end else begin
+				deb_1_a <= 1;
+			end
+			
+			if (debounceReg_1_b == 8'b0000_0000) begin
+				deb_1_b <= 0;
+			end else begin
+				deb_1_b <= 1;
+			end	
+					
+			debounceReg_2_b <= { debounceReg_2_b[6:0], enc2_b };	
+			debounceReg_2_a <= { debounceReg_2_a[6:0], enc2_a };
 
-    // pwm modules
-    pwm #(.WIDTH(8)) pwm0(.clk(clk), .reset(reset), .out(pwm0_out), .level(enc0));
-    pwm #(.WIDTH(8)) pwm1(.clk(clk), .reset(reset), .out(pwm1_out), .level(enc1));
-    pwm #(.WIDTH(8)) pwm2(.clk(clk), .reset(reset), .out(pwm2_out), .level(enc2));
+			if (debounceReg_2_a == 8'b0000_0000) begin
+				deb_2_a <= 0;
+			end else begin
+				deb_2_a <= 1;
+			end
+			
+			if (debounceReg_2_b == 8'b0000_0000) begin
+				deb_2_b <= 0;
+			end else begin
+				deb_2_b <= 1;
+			end
+			
+			if ({deb_0_a, deb_old_0_a, deb_0_b, deb_old_0_b} == 4'b1000) enc0 = enc0 + 1'b1;
+			if ({deb_0_a, deb_old_0_a, deb_0_b, deb_old_0_b} == 4'b0111) enc0 = enc0 + 1'b1;			
+			if ({deb_0_a, deb_old_0_a, deb_0_b, deb_old_0_b} == 4'b0010) enc0 = enc0 - 1'b1;
+			if ({deb_0_a, deb_old_0_a, deb_0_b, deb_old_0_b} == 4'b1101) enc0 = enc0 - 1'b1;			
+			
+			if ({deb_1_a, deb_old_1_a, deb_1_b, deb_old_1_b} == 4'b1000) enc1 = enc1 + 1'b1;
+			if ({deb_1_a, deb_old_1_a, deb_1_b, deb_old_1_b} == 4'b0111) enc1 = enc1 + 1'b1;			
+			if ({deb_1_a, deb_old_1_a, deb_1_b, deb_old_1_b} == 4'b0010) enc1 = enc1 - 1'b1;
+			if ({deb_1_a, deb_old_1_a, deb_1_b, deb_old_1_b} == 4'b1101) enc1 = enc1 - 1'b1;
+			
+			if ({deb_2_a, deb_old_2_a, deb_2_b, deb_old_2_b} == 4'b1000) enc2 = enc2 + 1'b1;
+			if ({deb_2_a, deb_old_2_a, deb_2_b, deb_old_2_b} == 4'b0111) enc2 = enc2 + 1'b1;			
+			if ({deb_2_a, deb_old_2_a, deb_2_b, deb_old_2_b} == 4'b0010) enc2 = enc2 - 1'b1;
+			if ({deb_2_a, deb_old_2_a, deb_2_b, deb_old_2_b} == 4'b1101) enc2 = enc2 - 1'b1;							
+			
+			deb_old_0_a <= deb_0_a;
+			deb_old_0_b <= deb_0_b;
+			
+			deb_old_1_a <= deb_1_a;
+			deb_old_1_b <= deb_1_b;
+			
+			deb_old_2_a <= deb_2_a;
+			deb_old_2_b <= deb_2_b;
+		end
+	end
+
+	assign pwm0_out = counter < enc0;
+	assign pwm1_out = counter < enc1;
+	assign pwm2_out = counter < enc2;
 
 endmodule
